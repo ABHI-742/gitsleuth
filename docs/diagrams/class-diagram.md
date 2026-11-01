@@ -1,32 +1,30 @@
 # Class diagram
 
-Names match the code in `src/gitsleuth/`.
+Names match the code in `src/main/java/dev/gitsleuth/`. Nested types such as `Agent.Limits` are shown by their short names.
 
 ```mermaid
 classDiagram
     direction LR
 
     class Agent {
-        +ModelClient model
-        +ToolDispatcher dispatcher
-        +Notebook notebook
-        +AgentLimits limits
-        +run(question) AgentResult
+        +run(question) Result
     }
-    class AgentLimits {
-        +int max_steps
-        +int max_tool_calls
-        +int max_total_tokens
-        +float deadline_seconds
+    class Limits {
+        <<record>>
+        +int maxSteps
+        +int maxToolCalls
+        +long maxTotalTokens
+        +Duration deadline
     }
-    class AgentResult {
-        +str run_id
-        +StopReason stop_reason
-        +str answer
+    class Result {
+        <<record>>
+        +String runId
+        +StopReason stopReason
+        +String answer
         +int steps
         +Usage usage
-        +list tool_calls
-        +list findings
+        +List toolCalls
+        +List findings
     }
     class StopReason {
         <<enumeration>>
@@ -40,96 +38,92 @@ classDiagram
         MODEL_ERROR
     }
     class ModelClient {
-        <<protocol>>
-        +complete(system, messages, tools, allow_tools) ModelTurn
+        <<interface>>
+        +complete(system, messages, tools, allowTools) ModelTurn
     }
-    class AnthropicModelClient {
-        +str model
-        +int max_tokens
-        +str effort
-        +bool use_fallbacks
-    }
+    class AnthropicModelClient
     class ModelTurn {
-        +str stop_reason
-        +list assistant_content
-        +str text
-        +list tool_calls
+        <<record>>
+        +String stopReason
+        +Object raw
+        +String text
+        +List toolCalls
         +Usage usage
     }
     class ToolDispatcher {
-        +float call_timeout
-        +RetryPolicy retry
         +dispatch(call) DispatchOutcome
-        +dispatch_many(calls) list
+        +dispatchMany(calls) List
     }
     class ToolRegistry {
         +add(...) ToolRoute
-        +add_mcp_server(connection)
+        +addMcpServer(connection)
         +get(name) ToolRoute
-        +definitions() list
+        +definitions() List
     }
     class ToolRoute {
-        +str name
-        +str server
-        +str remote_name
-        +dict input_schema
-        +bool retry_safe
-        +bool local
+        <<record>>
+        +String name
+        +String server
+        +String remoteName
+        +Map inputSchema
+        +boolean retrySafe
+        +boolean local
     }
     class RetryPolicy {
-        +int max_attempts
-        +float base_delay
-        +float max_delay
-        +delay(failed_attempts, rng) float
+        <<record>>
+        +int maxAttempts
+        +Duration baseDelay
+        +Duration maxDelay
+        +delay(failedAttempts, random) Duration
     }
     class DispatchOutcome {
-        +str tool_use_id
-        +str text
-        +bool is_error
-        +str error_kind
+        <<record>>
+        +String toolUseId
+        +String text
+        +boolean isError
+        +ErrorKind errorKind
         +int attempts
     }
     class ToolBackend {
-        <<protocol>>
+        <<interface>>
         +call(tool, arguments, timeout) ToolOutput
         +recover(lost)
     }
     class McpConnection {
-        +str name
-        +list tools
-        +int generation
-        +call(tool, arguments, timeout) ToolOutput
-        +recover(lost)
+        +open(name, target) McpConnection
+        +tools() List
+        +generation() int
     }
     class Notebook {
-        +list findings
-        +observe(tool_output)
+        +observe(toolOutput)
         +register(registry)
-        +call(tool, arguments, timeout) ToolOutput
-        +recover(lost)
+        +findings() List
     }
     class Finding {
-        +str claim
-        +list commits
-        +str confidence
+        <<record>>
+        +String claim
+        +List commits
+        +String confidence
     }
     class GitRepo {
-        +Path root
-        +float timeout_seconds
-        +int max_output_bytes
         +run(args) GitOutput
+        +validateRef(ref) String
+        +validateRepoPath(path) String
     }
-    class MCPServer {
-        <<MCP SDK>>
+    class CodeServer {
+        +tools(repo) List
+    }
+    class HistoryServer {
+        +tools(repo) List
     }
 
     Agent --> ModelClient
     Agent --> ToolDispatcher
     Agent --> Notebook
-    Agent --> AgentLimits
-    Agent ..> AgentResult : returns
-    AgentResult --> StopReason
-    AgentResult --> Finding
+    Agent --> Limits
+    Agent ..> Result : returns
+    Result --> StopReason
+    Result --> Finding
     AnthropicModelClient ..|> ModelClient
     ModelClient ..> ModelTurn : returns
     ToolDispatcher --> ToolRegistry
@@ -140,6 +134,8 @@ classDiagram
     McpConnection ..|> ToolBackend
     Notebook ..|> ToolBackend
     Notebook "1" *-- "many" Finding
-    McpConnection ..> MCPServer : MCP over stdio or HTTP
-    MCPServer --> GitRepo
+    McpConnection ..> CodeServer : MCP over stdio or HTTP
+    McpConnection ..> HistoryServer : MCP over stdio or HTTP
+    CodeServer --> GitRepo
+    HistoryServer --> GitRepo
 ```

@@ -1,9 +1,5 @@
-__pycache__/
-*.pyc
-.venv/
+target/
 .env
-.pytest_cache/
-.ruff_cache/
-*.egg-info/
-build/
-dist/
+.idea/
+*.iml
+.vscode/
